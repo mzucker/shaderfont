@@ -4,6 +4,8 @@
 # License: Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported
 # https://creativecommons.org/licenses/by-nc-sa/3.0/
 
+from __future__ import print_function
+
 import numpy as np
 import re
 import sys
@@ -54,6 +56,10 @@ OPTIONAL_SEP_EXPR = r'[, ]? *'
 INSTRUCTION_EXPR = OPCODE_EXPR + OPTIONAL_SEP_EXPR + INTEGER_EXPR + SEP_EXPR + INTEGER_EXPR
 PROGRAM_EXPR = r'^(' + INSTRUCTION_EXPR + OPTIONAL_SEP_EXPR + r')*$'
 
+IMMEDIATE_DATA_RANGE = range(-16, 16)
+ANGLE_RUN_VALUES = set(range(-16, 17)) - set([0])
+
+MAX_INSTRUCTION_COUNT = 8
 
 NOSYM = 0
 SYM_X = 1
@@ -67,7 +73,6 @@ CLIPXY = 3
 
 PX_PER_UNIT = 16
 
-IMMEDIATE_DATA_RANGE = range(-16, 16)
 
 THICKNESS = 0.75
 GLYPH_SEP = THICKNESS
@@ -419,22 +424,32 @@ def miter(da, dc, p, ta, tc):
 
 ################################################################################
 
-def rasterize(glyph, scl, p, dst):
+def tokenize(char, program):
 
-    (char, width, height, y0, ctype, sym, program) = glyph
-
-    isok = re.match(PROGRAM_EXPR, program)
-    if not isok:
-        print 'bad program for', char
-        print program
-        sys.exit(0)
+    if not re.match(PROGRAM_EXPR, program):
+        raise RuntimeError('bad program for {}: {}'.format(
+            char, program))
 
     instructions = re.findall(INSTRUCTION_EXPR, program)
-    instructions = [ (c, float(x), float(y)) for (c, x, y) in instructions ]
 
-    assert len(instructions) <= 8
+    assert len(instructions) <= MAX_INSTRUCTION_COUNT
 
-    print '*** rasterizing {} ***'.format(char)
+    instructions = [ (c, int(x), int(y)) for (c, x, y) in instructions ]
+    
+    for (c, x, y) in instructions:
+        
+        assert x in IMMEDIATE_DATA_RANGE
+
+        if c == 'A':
+            assert y in ANGLE_RUN_VALUES
+        else:
+            assert y in IMMEDIATE_DATA_RANGE
+
+    return instructions
+
+################################################################################
+
+def symmetrize(p, width, height, y0, sym):
 
     if sym == SYM_X:
         p[:,0] = 0.5*width - np.abs(p[:,0] - 0.5*width)
@@ -444,12 +459,23 @@ def rasterize(glyph, scl, p, dst):
         if sym == SKEWY:
             p[mask,0] = width - p[mask,0]
 
+def rasterize(glyph, scl, p, dst):
+
+    (char, width, height, y0, ctype, sym, program) = glyph
+
+    instructions = tokenize(char, program)
+
+    print('*** rasterizing {} ***'.format(char))
+    print()
+
+    symmetrize(p, width, height, y0, sym)
+
     dist_field = None
 
     prev_stroke = None
     
     prev_t1 = np.array([0., 0.])
-    prev_c = None
+    prev_opcode = None
 
     p0 = np.array([1., 1.,])
     ellipse_anchor = p0.copy()
@@ -458,23 +484,16 @@ def rasterize(glyph, scl, p, dst):
 
     alim = np.array([0., 0.])
 
-    for c, x, y in instructions:
+    for opcode, x, y in instructions:
 
-        print 'instruction is', c, x, y
+        print('instruction is', opcode, x, y)
 
-        assert x in IMMEDIATE_DATA_RANGE
+        p1 = np.array([x, y], dtype=float)
 
-        if c == 'A':
-            assert abs(y) in range(1, 17)
-        else:
-            assert y in IMMEDIATE_DATA_RANGE
-
-        p1 = np.array([x, y])
-
-        if c in 'MT':
+        if opcode in 'MT':
 
             if prev_stroke is not None:
-                print '  stroking {}'.format(prev_c)
+                print('  stroking {}'.format(prev_opcode))
                 dist_field = min_combine(prev_stroke, dist_field)
 
             prev_stroke = None
@@ -482,16 +501,16 @@ def rasterize(glyph, scl, p, dst):
             cur_stroke = None
             ellipse_anchor = p1.copy()
             update_point = True
-            clip_mode = (c == 'T')
+            clip_mode = (opcode == 'T')
             alim = np.array([0., 0.])
 
-        elif c == 'C':
+        elif opcode == 'C':
 
             ellipse_anchor = p1.copy()
             cur_stroke = None
             update_point = False
 
-        elif c == 'L':
+        elif opcode == 'L':
 
             if clip_mode:
                 cur_stroke = half_plane_dist(p0, p1, p)
@@ -505,21 +524,21 @@ def rasterize(glyph, scl, p, dst):
 
             cur_t1 = cur_t0.copy()
 
-            print '  cur_stroke is line from {} to {} with tangent {}'.format(p0, p1, cur_t0)
+            print('  cur_stroke is line from {} to {} with tangent {}'.format(p0, p1, cur_t0))
             update_point = True
 
-        elif c in 'UDE':
+        elif opcode in 'UDE':
 
             ctr = 0.5 * (p1 + p0)
             rad = 0.5 * (p1 - p0)
 
             delta = np.sign(p1 - p0)
 
-            if c == 'D':
+            if opcode == 'D':
                 ctr[0] = p0[0]
                 rad[0] = p1[0] - ctr[0]
                 alim = [-delta[1]*8, 16*delta[0]*delta[1]]
-            elif c == 'U':
+            elif opcode == 'U':
                 ctr[1] = p0[1]
                 rad[1] = p1[1] - ctr[1]
                 alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
@@ -550,12 +569,12 @@ def rasterize(glyph, scl, p, dst):
 
 
 
-            print ('  cur_stroke is ellipse arc from {} to {} '+
-                   'starting in dir {} ending in dir {}').format(p0, p1, cur_t0, cur_t1)
+            print('  cur_stroke is ellipse arc from {} to {} '+
+                  'starting in dir {} ending in dir {}'.format(p0, p1, cur_t0, cur_t1))
 
             update_point = True
 
-        elif c == 'A':
+        elif opcode == 'A':
 
             alim = np.array([x, y])
             update_point = False
@@ -572,11 +591,11 @@ def rasterize(glyph, scl, p, dst):
 
                 if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
                     assert prev_stroke is not None
-                    print '  calling miter between {} and {} for cur_stroke, cur_t0 is {}'.format(c, prev_c, cur_t0)
+                    print('  calling miter between {} and {} for cur_stroke, cur_t0 is {}'.format(opcode, prev_opcode, cur_t0))
                     prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
                                                     p-p0, prev_t1, -cur_t0)
 
-                    print '  stroking {}'.format(prev_c)
+                    print('  stroking {}'.format(prev_opcode))
                     dist_field = min_combine(prev_stroke, dist_field)
 
 
@@ -587,14 +606,14 @@ def rasterize(glyph, scl, p, dst):
         if update_point:
             p0 = p1.copy()
 
-        prev_c = c
+        prev_opcode = opcode
 
         
     if prev_stroke is not None:
-        print '  stroking {}'.format(prev_c)
+        print('  stroking {}'.format(prev_opcode))
         dist_field = min_combine(prev_stroke, dist_field)
 
-    print
+    print()
 
     clipy = np.abs(p[:,1]-0.5*height-y0)-0.5*height+1
     clipx = np.abs(p[:,0]-0.5*width)-0.5*width+1
@@ -643,7 +662,6 @@ def main():
 
 
     ascii_codes = set(ord(f[0]) for f in FONT)
-    print ascii_codes
 
     assert ascii_codes == set(range(32,127))
 
@@ -661,12 +679,12 @@ def main():
             dst_x = 0
             dst_y += 16*PX_PER_UNIT
             if dst_y > image.shape[0]:
-                print 'quitting early after', char
-        
+                print('quitting early after', char)
 
 
     pil_image = Image.fromarray((image*255).astype(np.uint8), 'L')
     pil_image.save('font.png')
+    print('wrote font.png')
     
 ################################################################################
 
