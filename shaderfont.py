@@ -61,6 +61,9 @@ ANGLE_RUN_VALUES = set(range(-16, 17)) - set([0])
 
 MAX_INSTRUCTION_COUNT = 8
 
+WIDTH_HEIGHT_RANGE = range(16)
+Y0_RANGE = range(-8, 8)
+
 NOSYM = 0
 SYM_X = 1
 SYM_Y = 2
@@ -462,6 +465,9 @@ def symmetrize(p, width, height, y0, sym):
 def rasterize(glyph, scl, p, dst):
 
     (char, width, height, y0, ctype, sym, program) = glyph
+    assert width in WIDTH_HEIGHT_RANGE
+    assert height in WIDTH_HEIGHT_RANGE
+    assert y0 in Y0_RANGE
 
     instructions = tokenize(char, program)
 
