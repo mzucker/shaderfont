@@ -478,7 +478,7 @@ def rasterize(glyph, scl, p, dst):
     prev_opcode = None
 
     p0 = np.array([1., 1.,])
-    ellipse_anchor = p0
+    ellipse_corner = p0
 
     clip_mode = False
 
@@ -492,7 +492,7 @@ def rasterize(glyph, scl, p, dst):
 
         if opcode == 'C':
             
-            ellipse_anchor = p1
+            ellipse_corner = p1
             continue
         
         elif opcode == 'A':
@@ -509,7 +509,7 @@ def rasterize(glyph, scl, p, dst):
             prev_stroke = None
             prev_t1 = np.array([0., 0.])
             alim = np.array([0., 0.])
-            ellipse_anchor = p1
+            ellipse_corner = p1
             p0 = p1
             clip_mode = (opcode == 'T')
             continue
@@ -533,8 +533,8 @@ def rasterize(glyph, scl, p, dst):
                 rad = np.array([0.5, 1])*d10
                 alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
             else:
-                ctr = 0.5 * (p1 + ellipse_anchor)
-                rad = 0.5 * (p1 - ellipse_anchor)
+                ctr = 0.5 * (p1 + ellipse_corner)
+                rad = 0.5 * (p1 - ellipse_corner)
 
             estroke, p1, et0, ep1, et1 = ellipse_dist(ctr, rad, p, alim, clip_mode)
 
