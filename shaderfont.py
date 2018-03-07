@@ -71,7 +71,7 @@ CLIP_X = 1
 CLIP_Y = 2
 CLIPXY = 3
 
-PX_PER_UNIT = 16
+PX_PER_UNIT = 8
 
 
 THICKNESS = 0.75
@@ -490,6 +490,13 @@ def rasterize(glyph, scl, p, dst):
 
         p1 = np.array([x, y], dtype=float)
 
+        if opcode == 'C':
+            ellipse_anchor = p1.copy()
+            cur_stroke = None
+            continue
+
+        update_p0 = False
+
         if opcode in 'MT':
 
             if prev_stroke is not None:
@@ -500,17 +507,12 @@ def rasterize(glyph, scl, p, dst):
             prev_t1 = np.array([0., 0.])
             cur_stroke = None
             ellipse_anchor = p1.copy()
-            update_point = True
+            update_p0 = True
             clip_mode = (opcode == 'T')
             alim = np.array([0., 0.])
 
-        elif opcode == 'C':
 
-            ellipse_anchor = p1.copy()
-            cur_stroke = None
-            update_point = False
-
-        elif opcode == 'L':
+        if opcode == 'L':
 
             if clip_mode:
                 cur_stroke = half_plane_dist(p0, p1, p)
@@ -525,7 +527,7 @@ def rasterize(glyph, scl, p, dst):
             cur_t1 = cur_t0.copy()
 
             print('  cur_stroke is line from {} to {} with tangent {}'.format(p0, p1, cur_t0))
-            update_point = True
+            update_p0 = True
 
         elif opcode in 'UDE':
 
@@ -572,12 +574,12 @@ def rasterize(glyph, scl, p, dst):
             print('  cur_stroke is ellipse arc from {} to {} '+
                   'starting in dir {} ending in dir {}'.format(p0, p1, cur_t0, cur_t1))
 
-            update_point = True
+            update_p0 = True
 
         elif opcode == 'A':
 
             alim = np.array([x, y])
-            update_point = False
+            update_p0 = False
             cur_stroke = None
             cur_t0 = np.array([0., 0.])
             cur_t1 = cur_t0.copy()
@@ -603,7 +605,7 @@ def rasterize(glyph, scl, p, dst):
                 prev_t1 = cur_t1.copy()
 
 
-        if update_point:
+        if update_p0:
             p0 = p1.copy()
 
         prev_opcode = opcode
@@ -646,8 +648,8 @@ def main():
 
     np.set_printoptions(precision=3)
 
-    img_width = 150 * PX_PER_UNIT
-    img_height = 90 * PX_PER_UNIT
+    img_width = 148 * PX_PER_UNIT
+    img_height = 83 * PX_PER_UNIT
 
     scl = 1.0 / PX_PER_UNIT
 
