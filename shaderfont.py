@@ -46,7 +46,7 @@ symmetry (2 bits)
 
 ################################################################################
 
-OPCODES = 'MCALEDUT'
+OPCODES = 'MTCAEDUL'
 
 INTEGER_EXPR = r'(-?[0-9]+)'
 OPCODE_EXPR = r'([' + OPCODES + '])'
@@ -514,11 +514,11 @@ def rasterize(glyph, scl, p, dst):
             clip_mode = (opcode == 'T')
             continue
 
-        assert opcode in 'UDEL' # Go Delaware?
+        assert opcode in 'EDUL' # Go Delaware?
 
         connect_ellipse = False
 
-        if opcode in 'UDE':
+        if opcode in 'EDU':
 
             m10 = 0.5 * (p1 + p0)
             d10 = (p1 - p0)
