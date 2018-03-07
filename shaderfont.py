@@ -65,6 +65,12 @@ OPCODE_EXPR = r'([' + OPCODES + '])'
 SEP_EXPR = r'[, ] *'
 OPTIONAL_SEP_EXPR = r'[, ]? *'
 
+FLOAT_SIGN_MASK =     np.uint32(0x80000000)
+FLOAT_EXPONENT_MSB  = np.uint32(0x40000000)
+FLOAT_EXPONENT_MASK = np.uint32(0x7f800000)
+FLOAT_MANTISSA_MASK = np.uint32(0x007fffff)
+
+
 INSTRUCTION_EXPR = OPCODE_EXPR + OPTIONAL_SEP_EXPR + INTEGER_EXPR + SEP_EXPR + INTEGER_EXPR
 PROGRAM_EXPR = r'^(' + INSTRUCTION_EXPR + OPTIONAL_SEP_EXPR + r')*$'
 
@@ -700,8 +706,8 @@ def make_fontmap_image():
     X, Y = np.meshgrid(rng, rng[::-1])
     porig = np.hstack( ( X.reshape(-1, 1), Y.reshape(-1, 1) ) )
 
-    ascii_codes = set(ord(f[0]) for f in FONT)
-    assert ascii_codes == set(range(32,127))
+    ascii_codes = [ord(f[0]) for f in FONT]
+    assert ascii_codes == list(range(32,127))
 
     for glyph in FONT:
 
@@ -763,6 +769,8 @@ def assemble(glyph):
 
         bcount = 0
 
+        gdata[i], bcount = write_bits(gdata[i], bcount, controls[i], CONTROL_BITS)
+        
         for j in range(2):
             
             opcode, x, y = instructions[2*i + j]
@@ -779,7 +787,11 @@ def assemble(glyph):
             gdata[i], bcount = write_bits(gdata[i], bcount, x, IMMEDIATE_BITS)
             gdata[i], bcount = write_bits(gdata[i], bcount, y, IMMEDIATE_BITS)
 
-        gdata[i], bcount = write_bits(gdata[i], bcount, controls[i], CONTROL_BITS)
+
+        if ( (gdata[i] & FLOAT_EXPONENT_MASK) == 0 and
+             (gdata[i] & FLOAT_MANTISSA_MASK) != 0):
+            gdata[i] |= FLOAT_EXPONENT_MSB
+
         assert bcount == WORD_BITS
         
     return ord(glyph.char), gdata
@@ -815,6 +827,19 @@ def disassemble(ascii_value, gdata):
 
         bcount = WORD_BITS
 
+        f = gdata[i].view(np.float32)
+        assert not np.isnan(f)
+        assert f >= 0
+
+        # not nan
+        assert gdata[i] & FLOAT_EXPONENT_MASK != FLOAT_EXPONENT_MASK
+
+        # not subnormal
+        assert gdata[i] == 0 or (gdata[i] & FLOAT_EXPONENT_MASK)
+        
+
+        controls[i], bcount = read_bits(gdata[i], bcount, CONTROL_BITS, (i == 3))
+        
         for j in range(2):
 
             opcode, bcount = read_bits(gdata[i], bcount, OPCODE_BITS)
@@ -827,7 +852,6 @@ def disassemble(ascii_value, gdata):
 
             instructions.append( (opcode, x, y) )
 
-        controls[i], bcount = read_bits(gdata[i], bcount, CONTROL_BITS, (i == 3))
         assert bcount == 0
 
     char = chr(ascii_value)
@@ -844,23 +868,89 @@ def disassemble(ascii_value, gdata):
 
 ######################################################################
 
+def glsl_u(t):
+    if t == 0:
+        return '0'
+    d = str(t) + 'u'
+    h = hex(t).rstrip('L') + 'u'
+    if len(d) < len(h):
+        return d
+    else:
+        return h
+
+######################################################################
+    
+def glsl_uvec(tile):
+    return 'uvec{}({})'.format(
+        len(tile),
+        ', '.join( [ glsl_u(t) for t in tile ] ) )
+
+######################################################################
+
+def glsl_header():
+
+    return '''const ivec2 dims = ivec2(16, 15);
+int cur, idx;
+vec4 data;
+
+void store(in uvec4 v) {
+    if (cur++ == idx) {
+        data = uintBitsToFloat(v);
+    }    
+}
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
+	
+    ivec2 fc = ivec2(fragCoord);
+
+    if (any(greaterThanEqual(fc, dims))) { 
+        return; 
+    }
+    
+    idx = fc.x + (fc.y << 4);
+    cur = 32;
+    data = vec4(0);
+
+'''
+
+######################################################################
+
+def glsl_footer():
+    return '''
+    fragColor = data;
+
+}
+'''
+
+######################################################################
+
 def encode_glyphs():
+
+    encoding = glsl_header()
 
     for glyph in FONT:
 
         ascii_value, gdata = assemble(glyph)
         alt_glyph = disassemble(ascii_value, gdata)
-
-        print(gdata)
+        
+        encoding += '    store(' + glsl_uvec(gdata) + ');\n'
 
         assert alt_glyph == glyph
 
+    encoding += glsl_footer()
+
+    glsl_filename = 'code.glsl'
+
+    with open(glsl_filename, 'w') as ostr:
+        ostr.write(encoding)
+
+    print('wrote {} with length {}'.format(glsl_filename, len(encoding)))
 
 ######################################################################
 
 def main():
 
-    #make_fontmap_image()
+    make_fontmap_image()
     encode_glyphs()
     
 ######################################################################
