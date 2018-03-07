@@ -6,10 +6,11 @@
 
 from __future__ import print_function
 
-import numpy as np
 import re
 import sys
+from collections import namedtuple
 
+import numpy as np
 from PIL import Image
 
 ################################################################################
@@ -36,11 +37,10 @@ leaves 4 bits easily accessible per 30-bit word
 
 which is handy because we need to store:
 
-width (4bits)
-height (4bits)
-y descent (4 bits)
-clip (2bits)
-symmetry (2 bits)
+0 clip (2bits) + symmetry (2 bits)
+1 width (4bits)
+2 height (4bits)
+3 y descent (4 bits)
 
 '''
 
@@ -69,10 +69,14 @@ SYM_X = 1
 SYM_Y = 2
 SKEWY = 3
 
+# we invert the expected bit values to make CLIPXY be value 0
 NOCLIP = 0
 CLIP_X = 1
 CLIP_Y = 2
 CLIPXY = 3
+
+# packing order
+WORD_PACKING = ['opcode', 'x', 'y', 'control']
 
 PX_PER_UNIT = 8
 
@@ -194,6 +198,10 @@ FONT = [
     ('~',  7,  3,  4, CLIPXY, NOSYM, 'C1,4 A-16,-9, E4,6 C6,5 A-9,9 E3,7'),
     
 ]
+
+GlyphInfo = namedtuple('GlyphInfo', 'char, width, height, y0, clip, sym, program')
+
+FONT = [ GlyphInfo(*glyph) for glyph in FONT ]
 
 ################################################################################
 
@@ -427,23 +435,23 @@ def miter(da, dc, p, ta, tc):
 
 ################################################################################
 
-def tokenize(char, program):
+def tokenize(g):
 
-    if not re.match(PROGRAM_EXPR, program):
+    if not re.match(PROGRAM_EXPR, g.program):
         raise RuntimeError('bad program for {}: {}'.format(
-            char, program))
+            g.char, g.program))
 
-    instructions = re.findall(INSTRUCTION_EXPR, program)
+    instructions = re.findall(INSTRUCTION_EXPR, g.program)
 
     assert len(instructions) <= MAX_INSTRUCTION_COUNT
 
-    instructions = [ (c, int(x), int(y)) for (c, x, y) in instructions ]
+    instructions = [ (opcode, int(x), int(y)) for (opcode, x, y) in instructions ]
     
-    for (c, x, y) in instructions:
+    for (opcode, x, y) in instructions:
         
         assert x in IMMEDIATE_DATA_RANGE
 
-        if c == 'A':
+        if opcode == 'A':
             assert y in ANGLE_RUN_VALUES
         else:
             assert y in IMMEDIATE_DATA_RANGE
@@ -462,19 +470,19 @@ def symmetrize(p, width, height, y0, sym):
         if sym == SKEWY:
             p[mask,0] = width - p[mask,0]
 
-def rasterize(glyph, scl, p, dst):
+def rasterize(g, scl, p, dst):
 
-    (char, width, height, y0, ctype, sym, program) = glyph
-    assert width in WIDTH_HEIGHT_RANGE
-    assert height in WIDTH_HEIGHT_RANGE
-    assert y0 in Y0_RANGE
 
-    instructions = tokenize(char, program)
+    assert g.width in WIDTH_HEIGHT_RANGE
+    assert g.height in WIDTH_HEIGHT_RANGE
+    assert g.y0 in Y0_RANGE
 
-    print('*** rasterizing {} ***'.format(char))
+    instructions = tokenize(g)
+
+    print('*** rasterizing {} ***'.format(g.char))
     print()
 
-    symmetrize(p, width, height, y0, sym)
+    symmetrize(p, g.width, g.height, g.y0, g.sym)
 
     dist_field = None
 
@@ -622,15 +630,17 @@ def rasterize(glyph, scl, p, dst):
 
     print()
 
-    clipy = np.abs(p[:,1]-0.5*height-y0)-0.5*height+1
-    clipx = np.abs(p[:,0]-0.5*width)-0.5*width+1
+    clipy = np.abs(p[:,1]-0.5*g.height-g.y0)-0.5*g.height+1
+    clipx = np.abs(p[:,0]-0.5*g.width)-0.5*g.width+1
 
-    if ctype & CLIP_Y:
+    #if g.clip == CLIP_Y or g.clip == CLIPXY:
+    if g.clip & CLIP_Y:
         if dist_field is not None:
             dist_field = max_combine(dist_field, clipy)
     else:
         clipy -= 0.4
-    if ctype & CLIP_X:
+        
+    if g.clip & CLIP_X:
         if dist_field is not None:
             dist_field = max_combine(dist_field, clipx)
     else:
