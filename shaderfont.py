@@ -526,7 +526,7 @@ def rasterize(glyph, scl, p, dst):
             clip_mode = (opcode == 'T')
             continue
 
-        assert opcode in 'EDUL' # Go Delaware?
+        assert opcode in 'EDUL' 
 
         connect_ellipse = False
 
