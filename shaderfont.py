@@ -552,18 +552,18 @@ def rasterize(glyph, scl, p, dst):
 
         if opcode in 'EDU':
 
-            m10 = 0.5 * (p1 + p0)
-            d10 = (p1 - p0)
-            delta = np.sign(d10)
+            mid = 0.5 * (p1 + p0)
+            diff = (p1 - p0)
+            sgn = np.sign(diff)
 
             if opcode == 'D':
-                ctr = [p0[0], m10[1]]
-                rad = d10 * [1, 0.5]
-                alim = [-delta[1]*8, 16*delta[0]*delta[1]]
+                ctr = [p0[0], mid[1]]
+                rad = diff * [1, 0.5]
+                alim = [-sgn[1]*8, 16*sgn[0]*sgn[1]]
             elif opcode == 'U':
-                ctr = [m10[0], p0[1]]
-                rad = d10 * [0.5, 1]
-                alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
+                ctr = [mid[0], p0[1]]
+                rad = diff * [0.5, 1]
+                alim = [8+sgn[0]*8, -16*sgn[0]*sgn[1]]
             else:
                 ctr = 0.5 * (p1 + ellipse_corner)
                 rad = 0.5 * (p1 - ellipse_corner)
@@ -632,7 +632,7 @@ def rasterize(glyph, scl, p, dst):
             prev_stroke = None
             prev_t1 = np.zeros(2)
 
-        elif cur_stroke is not None:
+        else:
 
             if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
                 
@@ -902,8 +902,9 @@ void store(in uvec4 v) {
 void mainImage( out vec4 fragColor, in vec2 fragCoord ) {
 	
     ivec2 fc = ivec2(fragCoord);
+    fragColor = texelFetch(iChannel0, fc, 0);
 
-    if (any(greaterThanEqual(fc, dims))) { 
+    if (iFrame > 0 || any(greaterThanEqual(fc, dims))) { 
         return; 
     }
     
