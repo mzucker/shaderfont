@@ -13,7 +13,7 @@ from collections import namedtuple
 import numpy as np
 from PIL import Image
 
-################################################################################
+######################################################################
 
 '''
 opcodes:
@@ -44,7 +44,7 @@ which is handy because we need to store:
 
 '''
 
-################################################################################
+######################################################################
 
 OPCODES = 'MTCAEDUL'
 
@@ -75,8 +75,6 @@ CLIP_X = 1
 CLIP_Y = 2
 CLIPXY = 3
 
-# packing order
-WORD_PACKING = ['opcode', 'x', 'y', 'control']
 
 PX_PER_UNIT = 8
 
@@ -203,7 +201,7 @@ GlyphInfo = namedtuple('GlyphInfo', 'char, width, height, y0, clip, sym, program
 
 FONT = [ GlyphInfo(*glyph) for glyph in FONT ]
 
-################################################################################
+######################################################################
 
 def smoothstep(lo, hi, X):
 
@@ -213,7 +211,7 @@ def smoothstep(lo, hi, X):
 
     return rval
 
-################################################################################
+######################################################################
 
 def max_combine(X, Y=None):
     if Y is None:
@@ -221,7 +219,7 @@ def max_combine(X, Y=None):
     else:
         return np.maximum(X, Y)
 
-################################################################################
+######################################################################
     
 def min_combine(X, Y=None):
     if Y is None:
@@ -229,22 +227,22 @@ def min_combine(X, Y=None):
     else:
         return np.minimum(X, Y)
 
-################################################################################
+######################################################################
     
 def perp(v):
     return np.array( [ -v[1], v[0] ] ).copy()
 
-################################################################################
+######################################################################
 
 def from_angle(t):
     return np.array( [ np.cos(t), np.sin(t) ] )
 
-################################################################################
+######################################################################
 
 def normalize(x):
     return x / np.linalg.norm(x)
 
-################################################################################
+######################################################################
 
 def half_plane_dist(p0, p1, p):
     d10 = p1 - p0
@@ -252,12 +250,12 @@ def half_plane_dist(p0, p1, p):
     n /= np.linalg.norm(n)
     return np.dot(p, n) - np.dot(p0, n)
     
-################################################################################
+######################################################################
 
 def box_dist(ctr, rad, p):
     return np.max( np.abs(p - ctr) - rad, axis=1 )
 
-################################################################################
+######################################################################
 
 def line_dist(p0, p1, p):
 
@@ -282,12 +280,12 @@ def line_dist(p0, p1, p):
 
     return box_dist([0,0], [0.5*l, 0], p)
 
-################################################################################
+######################################################################
 
 def mydot(x,y):
     return np.sum(x*y, axis=1)
 
-################################################################################
+######################################################################
 
 # TODO: investigate blocky artifacts with short-aspect-ratio ellipses
 def ellipse_dist(ctr, ab, p, alim, filled):
@@ -373,7 +371,7 @@ def ellipse_dist(ctr, ab, p, alim, filled):
 
     return d, ctr+p0, path_tangent0, ctr+p1, path_tangent1
 
-################################################################################
+######################################################################
 
 def clip_angles(p0, alim, p):
 
@@ -391,13 +389,13 @@ def clip_angles(p0, alim, p):
         
     return -np.maximum(np.dot(p, -n0), np.dot(p, n1))
 
-################################################################################
+######################################################################
 
 def align(u, v):
     sign = -1. if np.dot(u,v) < 0 else 1.
     return u * sign
 
-################################################################################
+######################################################################
 
 def bisect(ta, tc):
     if (np.dot(ta, tc) < -0.9999):
@@ -405,7 +403,7 @@ def bisect(ta, tc):
     else:
         return align(normalize(ta + tc), ta)
             
-################################################################################
+######################################################################
 
 def miter(da, dc, p, ta, tc):
 
@@ -433,15 +431,15 @@ def miter(da, dc, p, ta, tc):
 
     return da, dc
 
-################################################################################
+######################################################################
 
-def tokenize(g):
+def tokenize(glyph):
 
-    if not re.match(PROGRAM_EXPR, g.program):
+    if not re.match(PROGRAM_EXPR, glyph.program):
         raise RuntimeError('bad program for {}: {}'.format(
-            g.char, g.program))
+            glyph.char, glyph.program))
 
-    instructions = re.findall(INSTRUCTION_EXPR, g.program)
+    instructions = re.findall(INSTRUCTION_EXPR, glyph.program)
 
     assert len(instructions) <= MAX_INSTRUCTION_COUNT
 
@@ -458,7 +456,7 @@ def tokenize(g):
 
     return instructions
 
-################################################################################
+######################################################################
 
 def symmetrize(p, width, height, y0, sym):
 
@@ -470,19 +468,19 @@ def symmetrize(p, width, height, y0, sym):
         if sym == SKEWY:
             p[mask,0] = width - p[mask,0]
 
-def rasterize(g, scl, p, dst):
+def rasterize(glyph, scl, p, dst):
 
 
-    assert g.width in WIDTH_HEIGHT_RANGE
-    assert g.height in WIDTH_HEIGHT_RANGE
-    assert g.y0 in Y0_RANGE
+    assert glyph.width in WIDTH_HEIGHT_RANGE
+    assert glyph.height in WIDTH_HEIGHT_RANGE
+    assert glyph.y0 in Y0_RANGE
 
-    instructions = tokenize(g)
+    instructions = tokenize(glyph)
 
-    print('*** rasterizing {} ***'.format(g.char))
+    print('*** rasterizing {} ***'.format(glyph.char))
     print()
 
-    symmetrize(p, g.width, g.height, g.y0, g.sym)
+    symmetrize(p, glyph.width, glyph.height, glyph.y0, glyph.sym)
 
     dist_field = None
 
@@ -539,12 +537,12 @@ def rasterize(g, scl, p, dst):
             delta = np.sign(d10)
 
             if opcode == 'D':
-                ctr = np.array([p0[0], m10[1]])
-                rad = np.array([1, 0.5])*d10
+                ctr = [p0[0], m10[1]]
+                rad = d10 * [1, 0.5]
                 alim = [-delta[1]*8, 16*delta[0]*delta[1]]
             elif opcode == 'U':
-                ctr = np.array([m10[0], p0[1]])
-                rad = np.array([0.5, 1])*d10
+                ctr = [m10[0], p0[1]]
+                rad = d10 * [0.5, 1]
                 alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
             else:
                 ctr = 0.5 * (p1 + ellipse_corner)
@@ -580,12 +578,19 @@ def rasterize(g, scl, p, dst):
 
             if connect_ellipse:
 
+                assert np.linalg.norm(prev_t1)
+                
+                print('  calling miter between {} and '
+                      'connecting line, cur_t0 is {}'.format(
+                          prev_opcode, cur_t0))
+
                 prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
                                                 p-p0, prev_t1, -cur_t0)
+
+                print('  stroking {}'.format(prev_opcode))
                 
                 dist_field = min_combine(prev_stroke, dist_field)
 
-                print('  stroking {}'.format(prev_opcode))
                 
                 prev_stroke = cur_stroke
                 prev_t1 = cur_t1
@@ -610,8 +615,12 @@ def rasterize(g, scl, p, dst):
         elif cur_stroke is not None:
 
             if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
+                
                 assert prev_stroke is not None
-                print('  calling miter between {} and {} for cur_stroke, cur_t0 is {}'.format(opcode, prev_opcode, cur_t0))
+
+                print('  calling miter between {} and {}, '
+                      'cur_t0 is {}'.format(
+                          prev_opcode, opcode, cur_t0))
                 prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
                                                 p-p0, prev_t1, -cur_t0)
 
@@ -630,17 +639,17 @@ def rasterize(g, scl, p, dst):
 
     print()
 
-    clipy = np.abs(p[:,1]-0.5*g.height-g.y0)-0.5*g.height+1
-    clipx = np.abs(p[:,0]-0.5*g.width)-0.5*g.width+1
+    clipy = np.abs(p[:,1]-0.5*glyph.height-glyph.y0)-0.5*glyph.height+1
+    clipx = np.abs(p[:,0]-0.5*glyph.width)-0.5*glyph.width+1
 
     #if g.clip == CLIP_Y or g.clip == CLIPXY:
-    if g.clip & CLIP_Y:
+    if glyph.clip & CLIP_Y:
         if dist_field is not None:
             dist_field = max_combine(dist_field, clipy)
     else:
         clipy -= 0.4
         
-    if g.clip & CLIP_X:
+    if glyph.clip & CLIP_X:
         if dist_field is not None:
             dist_field = max_combine(dist_field, clipx)
     else:
@@ -657,9 +666,9 @@ def rasterize(g, scl, p, dst):
         clip_rect = (np.maximum(clipy, clipx)-THICKNESS).reshape(dst.shape)
         dst[:] = np.minimum(dst, smoothstep(0, scl, clip_rect)*0.15+0.85)
 
-################################################################################
+######################################################################
 
-def main():
+def make_fontmap_image():
 
     np.set_printoptions(precision=3)
 
@@ -699,8 +708,16 @@ def main():
     pil_image = Image.fromarray((image*255).astype(np.uint8), 'L')
     pil_image.save('font.png')
     print('wrote font.png')
+
+
+######################################################################
+
+def main():
+
+    make_fontmap_image()
+
     
-################################################################################
+######################################################################
 
 if __name__ == '__main__':
     main()
