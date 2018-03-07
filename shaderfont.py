@@ -18,13 +18,13 @@ from PIL import Image
 opcodes:
 
 000 M moveto  x y
-001 C circle anchor x y
-010 A angular start length
-011 L lineto x y
+001 T clipping x y
+010 C circle anchor x y
+011 A angular start length
 100 E ellipse x y 
 101 D half-ellipse x y 
 110 U half-ellipse x y
-111 T clipping x y
+111 L lineto x y
 
 3 bit opcode
 5 bit immediate data (2x)
@@ -478,7 +478,7 @@ def rasterize(glyph, scl, p, dst):
     prev_opcode = None
 
     p0 = np.array([1., 1.,])
-    ellipse_anchor = p0.copy()
+    ellipse_anchor = p0
 
     clip_mode = False
 
@@ -491,29 +491,60 @@ def rasterize(glyph, scl, p, dst):
         p1 = np.array([x, y], dtype=float)
 
         if opcode == 'C':
-            ellipse_anchor = p1.copy()
-            cur_stroke = None
+            
+            ellipse_anchor = p1
             continue
-
-        update_p0 = False
-
-        if opcode in 'MT':
-
+        
+        elif opcode == 'A':
+            
+            alim = np.array([x, y])
+            continue
+        
+        elif opcode in 'MT':
+            
             if prev_stroke is not None:
                 print('  stroking {}'.format(prev_opcode))
                 dist_field = min_combine(prev_stroke, dist_field)
 
             prev_stroke = None
             prev_t1 = np.array([0., 0.])
-            cur_stroke = None
-            ellipse_anchor = p1.copy()
-            update_p0 = True
-            clip_mode = (opcode == 'T')
             alim = np.array([0., 0.])
+            ellipse_anchor = p1
+            p0 = p1
+            clip_mode = (opcode == 'T')
+            continue
 
+        assert opcode in 'UDEL' # Go Delaware?
 
-        if opcode == 'L':
+        connect_ellipse = False
 
+        if opcode in 'UDE':
+
+            m10 = 0.5 * (p1 + p0)
+            d10 = (p1 - p0)
+            delta = np.sign(d10)
+
+            if opcode == 'D':
+                ctr = np.array([p0[0], m10[1]])
+                rad = np.array([1, 0.5])*d10
+                alim = [-delta[1]*8, 16*delta[0]*delta[1]]
+            elif opcode == 'U':
+                ctr = np.array([m10[0], p0[1]])
+                rad = np.array([0.5, 1])*d10
+                alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
+            else:
+                ctr = 0.5 * (p1 + ellipse_anchor)
+                rad = 0.5 * (p1 - ellipse_anchor)
+
+            estroke, p1, et0, ep1, et1 = ellipse_dist(ctr, rad, p, alim, clip_mode)
+
+            connect_ellipse = (not clip_mode and 
+                               prev_stroke is not None and
+                               np.linalg.norm(prev_t1) and
+                               np.linalg.norm(p1 - p0) > 1e-3)
+
+        if opcode == 'L' or connect_ellipse:
+           
             if clip_mode:
                 cur_stroke = half_plane_dist(p0, p1, p)
             else:
@@ -524,65 +555,29 @@ def rasterize(glyph, scl, p, dst):
             if n:
                 cur_t0 /= n
 
-            cur_t1 = cur_t0.copy()
+            cur_t1 = cur_t0
 
-            print('  cur_stroke is line from {} to {} with tangent {}'.format(p0, p1, cur_t0))
-            update_p0 = True
+            print('  making line from {} to {} with tangent {}'.format(p0, p1, cur_t0))
 
-        elif opcode in 'UDE':
+        if opcode in 'UDE':
 
-            ctr = 0.5 * (p1 + p0)
-            rad = 0.5 * (p1 - p0)
+            if connect_ellipse:
 
-            delta = np.sign(p1 - p0)
-
-            if opcode == 'D':
-                ctr[0] = p0[0]
-                rad[0] = p1[0] - ctr[0]
-                alim = [-delta[1]*8, 16*delta[0]*delta[1]]
-            elif opcode == 'U':
-                ctr[1] = p0[1]
-                rad[1] = p1[1] - ctr[1]
-                alim = [8+delta[0]*8, -16*delta[0]*delta[1]]
-            else:
-                ctr = 0.5 * (p1 + ellipse_anchor)
-                rad = 0.5 * (p1 - ellipse_anchor)
-
-
-            estroke, ep0, et0, ep1, et1 = ellipse_dist(ctr, rad, p, alim,
-                                                       clip_mode)
-
-            if prev_stroke is not None and np.linalg.norm(ep0 - p0) > 1e-3:
-                cur_stroke = line_dist(p0, ep0, p)
-                cur_t0 = normalize(ep0-p0)
-                cur_t1 = cur_t0.copy()
                 prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
                                                 p-p0, prev_t1, -cur_t0)
+                
                 dist_field = min_combine(prev_stroke, dist_field)
-
                 prev_stroke = cur_stroke
-                prev_t1 = cur_t1.copy()
+                prev_t1 = cur_t1
 
             cur_stroke = estroke
-            p0 = ep0
-            cur_t0 = et0
+            p0 = p1
             p1 = ep1
+            cur_t0 = et0
             cur_t1 = et1
 
-
-
-            print('  cur_stroke is ellipse arc from {} to {} '+
-                  'starting in dir {} ending in dir {}'.format(p0, p1, cur_t0, cur_t1))
-
-            update_p0 = True
-
-        elif opcode == 'A':
-
-            alim = np.array([x, y])
-            update_p0 = False
-            cur_stroke = None
-            cur_t0 = np.array([0., 0.])
-            cur_t1 = cur_t0.copy()
+            print(('  making ellipse arc from {} to {} '
+                  'starting in dir {} ending in dir {}').format(p0, p1, cur_t0, cur_t1))
 
         if clip_mode:
 
@@ -591,25 +586,20 @@ def rasterize(glyph, scl, p, dst):
 
         elif cur_stroke is not None:
 
-                if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
-                    assert prev_stroke is not None
-                    print('  calling miter between {} and {} for cur_stroke, cur_t0 is {}'.format(opcode, prev_opcode, cur_t0))
-                    prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
-                                                    p-p0, prev_t1, -cur_t0)
+            if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
+                assert prev_stroke is not None
+                print('  calling miter between {} and {} for cur_stroke, cur_t0 is {}'.format(opcode, prev_opcode, cur_t0))
+                prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
+                                                p-p0, prev_t1, -cur_t0)
 
-                    print('  stroking {}'.format(prev_opcode))
-                    dist_field = min_combine(prev_stroke, dist_field)
+                print('  stroking {}'.format(prev_opcode))
+                dist_field = min_combine(prev_stroke, dist_field)
 
+            prev_stroke = cur_stroke
+            prev_t1 = cur_t1
 
-                prev_stroke = cur_stroke
-                prev_t1 = cur_t1.copy()
-
-
-        if update_p0:
-            p0 = p1.copy()
-
+        p0 = p1
         prev_opcode = opcode
-
         
     if prev_stroke is not None:
         print('  stroking {}'.format(prev_opcode))
@@ -640,7 +630,7 @@ def rasterize(glyph, scl, p, dst):
 
     if SHADE_EXTENTS:
         clip_rect = (np.maximum(clipy, clipx)-THICKNESS).reshape(dst.shape)
-        dst[:] = np.minimum(dst, smoothstep(0, scl, clip_rect)*0.25+0.75)
+        dst[:] = np.minimum(dst, smoothstep(0, scl, clip_rect)*0.15+0.85)
 
 ################################################################################
 
@@ -649,7 +639,7 @@ def main():
     np.set_printoptions(precision=3)
 
     img_width = 148 * PX_PER_UNIT
-    img_height = 83 * PX_PER_UNIT
+    img_height = 80 * PX_PER_UNIT
 
     scl = 1.0 / PX_PER_UNIT
 
@@ -662,9 +652,7 @@ def main():
     X, Y = np.meshgrid(rng, rng[::-1])
     porig = np.hstack( ( X.reshape(-1, 1), Y.reshape(-1, 1) ) )
 
-
     ascii_codes = set(ord(f[0]) for f in FONT)
-
     assert ascii_codes == set(range(32,127))
 
     for glyph in FONT:
@@ -682,7 +670,6 @@ def main():
             dst_y += 16*PX_PER_UNIT
             if dst_y > image.shape[0]:
                 print('quitting early after', char)
-
 
     pil_image = Image.fromarray((image*255).astype(np.uint8), 'L')
     pil_image.save('font.png')
