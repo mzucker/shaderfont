@@ -37,9 +37,9 @@ leaves 4 bits easily accessible per 30-bit word
 
 which is handy because we need to store:
 
-0 clip (2bits) + symmetry (2 bits)
-1 width (4bits)
-2 height (4bits)
+0 width (4bits)
+1 height (4bits)
+2 clip (2bits) + symmetry (2 bits)
 3 y descent (4 bits)
 
 '''
@@ -47,6 +47,18 @@ which is handy because we need to store:
 ######################################################################
 
 OPCODES = 'MTCAEDUL'
+
+NOP = ('M', 0, 0)
+
+OPCODE_BITS = 3
+IMMEDIATE_BITS = 5
+INSTRUCTION_BITS = OPCODE_BITS + 2*IMMEDIATE_BITS
+
+CONTROL_BITS = 4
+WORD_BITS = 2*INSTRUCTION_BITS + CONTROL_BITS
+NUM_WORDS = 4
+
+MAX_INSTRUCTION_COUNT = NUM_WORDS * 2
 
 INTEGER_EXPR = r'(-?[0-9]+)'
 OPCODE_EXPR = r'([' + OPCODES + '])'
@@ -58,8 +70,6 @@ PROGRAM_EXPR = r'^(' + INSTRUCTION_EXPR + OPTIONAL_SEP_EXPR + r')*$'
 
 IMMEDIATE_DATA_RANGE = range(-16, 16)
 ANGLE_RUN_VALUES = set(range(-16, 17)) - set([0])
-
-MAX_INSTRUCTION_COUNT = 8
 
 WIDTH_HEIGHT_RANGE = range(16)
 Y0_RANGE = range(-8, 8)
@@ -197,9 +207,37 @@ FONT = [
     
 ]
 
-GlyphInfo = namedtuple('GlyphInfo', 'char, width, height, y0, clip, sym, program')
+######################################################################
 
-FONT = [ GlyphInfo(*glyph) for glyph in FONT ]
+def tokenize(char, program):
+
+    if not re.match(PROGRAM_EXPR, program):
+        raise RuntimeError('bad program for {}: {}'.format(
+            char, program))
+
+    instructions = re.findall(INSTRUCTION_EXPR, program)
+
+    assert len(instructions) <= MAX_INSTRUCTION_COUNT
+
+    instructions = [ (opcode, int(x), int(y)) for (opcode, x, y) in instructions ]
+    
+    for (opcode, x, y) in instructions:
+        
+        assert x in IMMEDIATE_DATA_RANGE
+
+        if opcode == 'A':
+            assert y in ANGLE_RUN_VALUES
+        else:
+            assert y in IMMEDIATE_DATA_RANGE
+
+    return instructions
+
+######################################################################
+
+GlyphInfo = namedtuple('GlyphInfo', 'char, width, height, y0, clip, sym, instructions')
+
+FONT = [ GlyphInfo(*(glyph[:-1] + (tokenize(glyph[0], glyph[-1]),)))
+         for glyph in FONT ]
 
 ######################################################################
 
@@ -431,30 +469,6 @@ def miter(da, dc, p, ta, tc):
 
     return da, dc
 
-######################################################################
-
-def tokenize(glyph):
-
-    if not re.match(PROGRAM_EXPR, glyph.program):
-        raise RuntimeError('bad program for {}: {}'.format(
-            glyph.char, glyph.program))
-
-    instructions = re.findall(INSTRUCTION_EXPR, glyph.program)
-
-    assert len(instructions) <= MAX_INSTRUCTION_COUNT
-
-    instructions = [ (opcode, int(x), int(y)) for (opcode, x, y) in instructions ]
-    
-    for (opcode, x, y) in instructions:
-        
-        assert x in IMMEDIATE_DATA_RANGE
-
-        if opcode == 'A':
-            assert y in ANGLE_RUN_VALUES
-        else:
-            assert y in IMMEDIATE_DATA_RANGE
-
-    return instructions
 
 ######################################################################
 
@@ -468,14 +482,14 @@ def symmetrize(p, width, height, y0, sym):
         if sym == SKEWY:
             p[mask,0] = width - p[mask,0]
 
+######################################################################
+
 def rasterize(glyph, scl, p, dst):
 
 
     assert glyph.width in WIDTH_HEIGHT_RANGE
     assert glyph.height in WIDTH_HEIGHT_RANGE
     assert glyph.y0 in Y0_RANGE
-
-    instructions = tokenize(glyph)
 
     print('*** rasterizing {} ***'.format(glyph.char))
     print()
@@ -496,7 +510,7 @@ def rasterize(glyph, scl, p, dst):
 
     alim = np.array([0., 0.])
 
-    for opcode, x, y in instructions:
+    for opcode, x, y in glyph.instructions:
 
         print('instruction is', opcode, x, y)
 
@@ -709,13 +723,145 @@ def make_fontmap_image():
     pil_image.save('font.png')
     print('wrote font.png')
 
+######################################################################
+
+def write_bits(bits, bcount, stuff, length):
+
+    assert bcount + length <= WORD_BITS
+
+    mask = (np.uint32(1) << length) - 1
+    
+    ustuff = np.uint32(stuff) & mask
+
+    bits = (bits << length) | ustuff
+
+    #print('  for {} of length {}, writing bits {} with mask {}'.format(
+    #    stuff, length, bin(ustuff)[2:], bin(mask)[2:]))
+        
+    bcount += length
+
+    return bits, bcount
+
+######################################################################
+
+def assemble(glyph):
+
+    extra = MAX_INSTRUCTION_COUNT - len(glyph.instructions)
+
+    instructions = glyph.instructions + [NOP] * extra
+
+    gdata = np.zeros(4, dtype=np.uint32)
+
+    controls = [
+        glyph.width,
+        glyph.height,
+        (~glyph.clip << 2) | glyph.sym,
+        glyph.y0
+    ]
+
+    for i in range(NUM_WORDS):
+
+        bcount = 0
+
+        for j in range(2):
+            
+            opcode, x, y = instructions[2*i + j]
+
+            if opcode == 'A' and y > 0:
+                y -= 1
+
+            assert(x in IMMEDIATE_DATA_RANGE)
+            assert(y in IMMEDIATE_DATA_RANGE)
+                
+            opcode = OPCODES.index(opcode)
+            
+            gdata[i], bcount = write_bits(gdata[i], bcount, opcode, OPCODE_BITS)
+            gdata[i], bcount = write_bits(gdata[i], bcount, x, IMMEDIATE_BITS)
+            gdata[i], bcount = write_bits(gdata[i], bcount, y, IMMEDIATE_BITS)
+
+        gdata[i], bcount = write_bits(gdata[i], bcount, controls[i], CONTROL_BITS)
+        assert bcount == WORD_BITS
+        
+    return ord(glyph.char), gdata
+
+######################################################################
+
+def read_bits(bits, bcount, b, sign_extend=False):
+
+    assert bcount >= b
+    assert bits.dtype == np.uint32
+
+    shift = np.uint32(bcount - b)
+    mask = np.uint32((1 << b) - 1)
+    x = np.int32( (bits >> shift) & mask )
+
+    if sign_extend:
+        m = np.int32(1 << (b-1))
+        x = (x ^ m) - m
+
+    return x, shift
+
+######################################################################
+
+def disassemble(ascii_value, gdata):
+
+    assert len(gdata) == 4 and gdata.dtype == np.uint32
+
+    controls = np.zeros(4, dtype=np.int32)
+
+    instructions = []
+
+    for i in range(NUM_WORDS):
+
+        bcount = WORD_BITS
+
+        for j in range(2):
+
+            opcode, bcount = read_bits(gdata[i], bcount, OPCODE_BITS)
+            x, bcount = read_bits(gdata[i], bcount, IMMEDIATE_BITS, True)
+            y, bcount = read_bits(gdata[i], bcount, IMMEDIATE_BITS, True)
+
+            opcode = OPCODES[opcode]
+            if opcode == 'A' and y >= 0:
+                y += 1
+
+            instructions.append( (opcode, x, y) )
+
+        controls[i], bcount = read_bits(gdata[i], bcount, CONTROL_BITS, (i == 3))
+        assert bcount == 0
+
+    char = chr(ascii_value)
+    width = controls[0]
+    height = controls[1]
+    clip = (~(controls[2] >> 2)) & 0x3
+    sym = controls[2] & 0x3
+    y0 = controls[3]
+
+    while len(instructions) and instructions[-1] == NOP:
+        instructions = instructions[:-1]
+
+    return GlyphInfo(char, width, height, y0, clip, sym, instructions)
+
+######################################################################
+
+def encode_glyphs():
+
+    for glyph in FONT:
+
+        ascii_value, gdata = assemble(glyph)
+        alt_glyph = disassemble(ascii_value, gdata)
+
+        print(gdata)
+
+        assert alt_glyph == glyph
+
 
 ######################################################################
 
 def main():
 
-    make_fontmap_image()
-
+    #make_fontmap_image()
+    encode_glyphs()
     
 ######################################################################
 
