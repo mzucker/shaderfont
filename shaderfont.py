@@ -536,7 +536,8 @@ def rasterize(glyph, scl, p, dst):
                 ctr = 0.5 * (p1 + ellipse_corner)
                 rad = 0.5 * (p1 - ellipse_corner)
 
-            estroke, p1, et0, ep1, et1 = ellipse_dist(ctr, rad, p, alim, clip_mode)
+            estroke, p1, et0, ep1, et1 = ellipse_dist(
+                ctr, rad, p, alim, clip_mode)
 
             connect_ellipse = (not clip_mode and 
                                prev_stroke is not None and
@@ -557,7 +558,9 @@ def rasterize(glyph, scl, p, dst):
 
             cur_t1 = cur_t0
 
-            print('  making line from {} to {} with tangent {}'.format(p0, p1, cur_t0))
+            print('  making {}line from {} to {} with tangent {}'.format(
+                ('connecting ' if connect_ellipse else ''),
+                p0, p1, cur_t0))
 
         if opcode in 'UDE':
 
@@ -567,8 +570,12 @@ def rasterize(glyph, scl, p, dst):
                                                 p-p0, prev_t1, -cur_t0)
                 
                 dist_field = min_combine(prev_stroke, dist_field)
+
+                print('  stroking {}'.format(prev_opcode))
+                
                 prev_stroke = cur_stroke
                 prev_t1 = cur_t1
+                prev_opcode = 'connecting line'
 
             cur_stroke = estroke
             p0 = p1
@@ -577,12 +584,14 @@ def rasterize(glyph, scl, p, dst):
             cur_t1 = et1
 
             print(('  making ellipse arc from {} to {} '
-                  'starting in dir {} ending in dir {}').format(p0, p1, cur_t0, cur_t1))
+                  'starting in dir {} ending in dir {}').format(
+                      p0, p1, cur_t0, cur_t1))
 
         if clip_mode:
 
             dist_field = max_combine(cur_stroke, dist_field)
             prev_stroke = None
+            prev_t1 = np.zeros(2)
 
         elif cur_stroke is not None:
 
