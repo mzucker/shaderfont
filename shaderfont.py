@@ -572,7 +572,6 @@ def rasterize(glyph, scl, p, dst):
                 ctr, rad, p, alim, clip_mode)
 
             connect_ellipse = (not clip_mode and
-                               alim[1] != 0 and 
                                prev_stroke is not None and
                                np.linalg.norm(prev_t1) and
                                np.linalg.norm(p1 - p0) > 1e-3)
@@ -636,17 +635,7 @@ def rasterize(glyph, scl, p, dst):
 
         else:
 
-            if opcode == 'E' and alim[1] == 0:
-
-                if prev_stroke is not None:
-                    dist_field = min_combine(prev_stroke, dist_field)
-
-                dist_field = min_combine(cur_stroke, dist_field)
-
-                cur_stroke = None
-                cur_t1 = np.zeros(2)
-
-            elif np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
+            if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
                 
                 assert prev_stroke is not None
 
