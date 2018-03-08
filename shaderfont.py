@@ -46,7 +46,6 @@ which is handy because we need to store:
 
 ######################################################################
 
-
 OPCODES = 'MTCAEDUL'
 
 NOP = ('M', 0, 0)
@@ -71,7 +70,6 @@ FLOAT_EXPONENT_MSB  = np.uint32(0x40000000)
 FLOAT_EXPONENT_MASK = np.uint32(0x7f800000)
 FLOAT_MANTISSA_MASK = np.uint32(0x007fffff)
 
-
 INSTRUCTION_EXPR = OPCODE_EXPR + OPTIONAL_SEP_EXPR + INTEGER_EXPR + SEP_EXPR + INTEGER_EXPR
 PROGRAM_EXPR = r'^(' + INSTRUCTION_EXPR + OPTIONAL_SEP_EXPR + r')*$'
 
@@ -86,15 +84,12 @@ SYM_X = 1
 SYM_Y = 2
 SKEWY = 3
 
-# we invert the expected bit values to make CLIPXY be value 0
 NOCLIP = 0
 CLIP_X = 1
 CLIP_Y = 2
 CLIPXY = 3
 
-
 PX_PER_UNIT = 8
-
 
 THICKNESS = 0.5
 GLYPH_SEP = THICKNESS
@@ -103,7 +98,6 @@ ISOLINES = 0
 MAX_MITER_ZONE = 3.
 SHADE_EXTENTS = True
 
-
 RELEASE_MODE = True
 
 FONT = [
@@ -111,7 +105,6 @@ FONT = [
     # 32-47
     (' ',  6,  0,  0, CLIPXY, NOSYM, ''),
     ('!',  2, 10,  0, CLIPXY, SYM_X, 'M1,9 L1,4 T1,5 L-1,12 M1,1 L1,1'),
-    #('"',  5,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M4,8 L4,9 T4,9 L3,8'),
     ('"',  4,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M3,8 L3,9 T3,9 L2,8'),
     ('#',  7, 10,  0, CLIPXY, SYM_Y, 'M1,3 L6,3 M2,0 L2,5 M5,0 L5,5'),
     ('$',  6, 12, -1, CLIPXY, SKEWY, 'A-13,5 E5,5 D5,5 D1,9 M3,0 L3,1'),
@@ -336,7 +329,6 @@ def mydot(x,y):
 
 ######################################################################
 
-# TODO: investigate blocky artifacts with short-aspect-ratio ellipses
 def ellipse_dist(ctr, ab, p, alim, filled):
 
     p = (p - ctr)
@@ -484,7 +476,6 @@ def miter(da, dc, p, ta, tc):
 
     return da, dc
 
-
 ######################################################################
 
 def symmetrize(p, width, height, y0, sym):
@@ -500,7 +491,6 @@ def symmetrize(p, width, height, y0, sym):
 ######################################################################
 
 def rasterize(glyph, scl, p, dst):
-
 
     assert glyph.width in WIDTH_HEIGHT_RANGE
     assert glyph.height in WIDTH_HEIGHT_RANGE
@@ -684,7 +674,6 @@ def rasterize(glyph, scl, p, dst):
     clipy = np.abs(p[:,1]-0.5*glyph.height-glyph.y0)-0.5*glyph.height+1
     clipx = np.abs(p[:,0]-0.5*glyph.width)-0.5*glyph.width+1
 
-    #if g.clip == CLIP_Y or g.clip == CLIPXY:
     if glyph.clip & CLIP_Y:
         if dist_field is not None:
             dist_field = max_combine(dist_field, clipy)
