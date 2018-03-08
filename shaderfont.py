@@ -99,15 +99,10 @@ PX_PER_UNIT = 8
 THICKNESS = 0.75
 GLYPH_SEP = THICKNESS
 
-ISOLINES = 2
+ISOLINES = 0
 MAX_MITER_ZONE = 3.
 SHADE_EXTENTS = True
 
-'''
-FONT = [
-    ('6',  6, 10,  0, CLIPXY, NOSYM, 'A0,-16 E5,5 ')
-]
-'''
 
 RELEASE_MODE = True
     
@@ -138,7 +133,7 @@ FONT = [
     ('3',  6, 10,  0, CLIPXY, SYM_Y, 'A-14,6 E5,5 D5,5'),
     ('4',  6, 10,  0, CLIPXY, NOSYM, 'M4,1 L4,9 L1,4 L5,4'),
     ('5',  6, 10,  0, CLIPXY, NOSYM, 'A-15,7 E5,6 D5,6 L1,6 L2,9 L5,9 L6,12'),
-    ('6',  6, 10,  0, CLIPXY, NOSYM, 'M6,9 A6,10 E1,1 L1,3 U5,1 L5,4 U1,6'),
+    ('6',  6, 10,  0, CLIPXY, NOSYM, 'E5,6 M1,3 L1,4 A-16,-12 E5,9 T1,1 A0,-16 E5,6'),
     ('7',  6, 10,  0, CLIPXY, NOSYM, 'M1,9 L5,9 L1,-1'),
     ('8',  6, 10,  0, CLIPXY, SYM_Y, 'E5,5'),
     ('9',  6, 10,  0, CLIPXY, NOSYM, 'C5,1 A-11,11 E0,9 L5,7 U1,9 L1,6 U5,4'),
@@ -410,7 +405,13 @@ def ellipse_dist(ctr, ab, p, alim, filled):
         d_end = mydot(p, n)
 
         if filled:
-            d = np.minimum(d, np.maximum(-d_end, mydot(p, t)))
+
+            h = n - t
+            h /= np.linalg.norm(h, axis=1)[:,None]
+            
+            d = np.where(d_end < 0,
+                         d,
+                         mydot(p, t))
         else:
             d = np.where(d_end > 0,
                          np.maximum(d_end, np.abs(mydot(p, t))),
