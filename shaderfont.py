@@ -46,6 +46,7 @@ which is handy because we need to store:
 
 ######################################################################
 
+
 OPCODES = 'MTCAEDUL'
 
 NOP = ('M', 0, 0)
@@ -98,10 +99,18 @@ PX_PER_UNIT = 8
 THICKNESS = 0.75
 GLYPH_SEP = THICKNESS
 
-ISOLINES = 0
+ISOLINES = 2
 MAX_MITER_ZONE = 3.
 SHADE_EXTENTS = True
 
+'''
+FONT = [
+    ('6',  6, 10,  0, CLIPXY, NOSYM, 'A0,-16 E5,5 ')
+]
+'''
+
+RELEASE_MODE = True
+    
 FONT = [
 
     # 32-47
@@ -391,20 +400,21 @@ def ellipse_dist(ctr, ab, p, alim, filled):
 
         d_split = np.dot(p, n_split) < 0
 
-        d0 = np.linalg.norm(p - p0, axis=1)
-        d1 = np.linalg.norm(p - p1, axis=1)
-
         # choose closest endpoint
         p_end = np.where(d_split[:,None], p0[None,:], p1[None,:])
         n = np.where(d_split[:,None], -path_tangent0[None,:], path_tangent1[None,:])
         t = np.where(d_split[:,None], clip0[None,:], clip1[None,:])
 
-        d_end = mydot(p - p_end, n)
-        
-        if not filled:
-            d_end = np.maximum( np.abs(d_end), np.abs( mydot(p - p_end, t) ) )
+        p = p - p_end
 
-        d = np.where(mydot(p - p_end, n) < 0, d, d_end)
+        d_end = mydot(p, n)
+
+        if filled:
+            d = np.minimum(d, np.maximum(-d_end, mydot(p, t)))
+        else:
+            d = np.where(d_end > 0,
+                         np.maximum(d_end, np.abs(mydot(p, t))),
+                         d)
 
     else:
 
@@ -567,6 +577,7 @@ def rasterize(glyph, scl, p, dst):
             else:
                 ctr = 0.5 * (p1 + ellipse_corner)
                 rad = 0.5 * (p1 - ellipse_corner)
+                ellipse_corner = p1
 
             estroke, p1, et0, ep1, et1 = ellipse_dist(
                 ctr, rad, p, alim, clip_mode)
@@ -706,8 +717,9 @@ def make_fontmap_image():
     X, Y = np.meshgrid(rng, rng[::-1])
     porig = np.hstack( ( X.reshape(-1, 1), Y.reshape(-1, 1) ) )
 
-    ascii_codes = [ord(f[0]) for f in FONT]
-    assert ascii_codes == list(range(32,127))
+    if RELEASE_MODE:
+        ascii_codes = [ord(f[0]) for f in FONT]
+        assert ascii_codes == list(range(32,127))
 
     for glyph in FONT:
 
