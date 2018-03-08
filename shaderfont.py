@@ -109,7 +109,7 @@ RELEASE_MODE = True
 FONT = [
 
     # 32-47
-    (' ',  6,  1,  0, CLIPXY, NOSYM, ''),
+    (' ',  6,  0,  0, CLIPXY, NOSYM, ''),
     ('!',  2, 10,  0, CLIPXY, SYM_X, 'M1,9 L1,4 T1,5 L-1,12 M1,1 L1,1'),
     ('"',  5,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M4,8 L4,9 T4,9 L3,8'),
     ('#',  7, 10,  0, CLIPXY, SYM_Y, 'M1,3 L6,3 M2,0 L2,5 M5,0 L5,5'),
