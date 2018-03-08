@@ -133,10 +133,10 @@ FONT = [
     ('3',  6, 10,  0, CLIPXY, SYM_Y, 'A-14,6 E5,5 D5,5'),
     ('4',  6, 10,  0, CLIPXY, NOSYM, 'M4,1 L4,9 L1,4 L5,4'),
     ('5',  6, 10,  0, CLIPXY, NOSYM, 'A-15,7 E5,6 D5,6 L1,6 L2,9 L5,9 L6,12'),
-    ('6',  6, 10,  0, CLIPXY, NOSYM, 'E5,6 M1,3 L1,4 A-16,-10 E6,9 T1,1 A0,-16 E5,6'),
+    ('6',  6, 10,  0, CLIPXY, NOSYM, 'E5,6 M1,2 L1,3 A-16,-10 E6,9 T1,1 A0,-16 E5,6'),
     ('7',  6, 10,  0, CLIPXY, NOSYM, 'M1,9 L5,9 L1,-1'),
     ('8',  6, 10,  0, CLIPXY, SYM_Y, 'E5,5'),
-    ('9',  6, 10,  0, CLIPXY, NOSYM, 'C5,1 A-11,11 E0,9 L5,7 U1,9 L1,6 U5,4'),
+    ('9',  6, 10,  0, CLIPXY, NOSYM, 'A-12,12 E5,6 L5,9 M5,9 E1,4 T5,9 A0,16 E1,4'),
     (':',  2,  7,  0, CLIPXY, NOSYM, 'L1,1 M1,6 L1,6'),
     (';',  2,  8, -1, CLIPXY, NOSYM, 'M1,0 L1,1 M1,6 L1,6 T1,1 L0,0'),
     ('<',  6,  8,  1, CLIP_X, SYM_Y, 'M6,2 L1,5'),
@@ -601,6 +601,7 @@ def rasterize(glyph, scl, p, dst):
                 cur_t0 /= n
 
             cur_t1 = cur_t0
+            ellipse_corner = p1
 
             print('  making {}line from {} to {} with tangent {}'.format(
                 ('connecting ' if connect_ellipse else ''),
