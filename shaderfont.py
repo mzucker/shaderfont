@@ -106,13 +106,6 @@ SHADE_EXTENTS = True
 
 RELEASE_MODE = True
 
-'''
-FONT = [
-    ('9',  6, 10,  0, CLIPXY, NOSYM, 'M5,9 E1,5 A8,-9 E5,9 L2,-2 T5,7 U1,9'),
-    ('9',  6, 10,  0, CLIPXY, NOSYM, 'M1,1 C1,5 A8,-9 E5,9'),
-]    
-'''
-
 FONT = [
 
     # 32-47
@@ -139,11 +132,11 @@ FONT = [
     ('2',  6, 10,  0, CLIPXY, NOSYM, 'M5,1 L1,1 C1,5 A-3,3 E5,9 U1,9'),
     ('3',  6, 10,  0, CLIPXY, SYM_Y, 'A-14,6 E5,5 D5,5'),
     ('4',  6, 10,  0, CLIPXY, NOSYM, 'M4,1 L4,9 L1,4 L5,4'),
-    ('5',  6, 10,  0, CLIPXY, NOSYM, 'A-15,7 E5,6 D5,6 L1,6 L2,9 L5,9 L6,12'),
-    ('6',  6, 10,  0, CLIPXY, NOSYM, 'E5,6 M1,2 L1,3 A-16,-10 E6,9 T1,1 A0,-16 E5,6'),
+    ('5',  6, 10,  0, CLIPXY, NOSYM, 'M1,3 U5,1 C5,1 A0,10 E0,6 L2,9 L5,9'),    
+    ('6',  6, 10,  0, CLIPXY, NOSYM, 'E5,6 M5,9 A4,12 E1,3 L1,1 T1,1 A0,-16 E5,6'),
     ('7',  6, 10,  0, CLIPXY, NOSYM, 'M1,9 L5,9 L1,-1'),
     ('8',  6, 10,  0, CLIPXY, SYM_Y, 'E5,5'),
-    ('9',  6, 10,  0, CLIPXY, NOSYM, 'A-12,12 E5,6 L5,9 M5,9 E1,4 T5,9 A0,16 E1,4'),
+    ('9',  6, 10,  0, CLIPXY, NOSYM, 'A-12,12 E5,7 L5,9 M5,9 E1,4 T5,9 A0,16 E1,4'),
     (':',  2,  7,  0, CLIPXY, NOSYM, 'L1,1 M1,6 L1,6'),
     (';',  2,  8, -1, CLIPXY, NOSYM, 'M1,0 L1,1 M1,6 L1,6 T1,1 L0,0'),
     ('<',  6,  8,  1, CLIP_X, SYM_Y, 'M6,2 L1,5'),
