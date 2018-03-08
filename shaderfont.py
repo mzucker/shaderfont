@@ -105,7 +105,14 @@ SHADE_EXTENTS = True
 
 
 RELEASE_MODE = True
-    
+
+'''
+FONT = [
+    ('9',  6, 10,  0, CLIPXY, NOSYM, 'M5,9 E1,5 A8,-9 E5,9 L2,-2 T5,7 U1,9'),
+    ('9',  6, 10,  0, CLIPXY, NOSYM, 'M1,1 C1,5 A8,-9 E5,9'),
+]    
+'''
+
 FONT = [
 
     # 32-47
@@ -580,7 +587,8 @@ def rasterize(glyph, scl, p, dst):
             estroke, p1, et0, ep1, et1 = ellipse_dist(
                 ctr, rad, p, alim, clip_mode)
 
-            connect_ellipse = (not clip_mode and 
+            connect_ellipse = (not clip_mode and
+                               alim[1] != 0 and 
                                prev_stroke is not None and
                                np.linalg.norm(prev_t1) and
                                np.linalg.norm(p1 - p0) > 1e-3)
@@ -644,7 +652,17 @@ def rasterize(glyph, scl, p, dst):
 
         else:
 
-            if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
+            if opcode == 'E' and alim[1] == 0:
+
+                if prev_stroke is not None:
+                    dist_field = min_combine(prev_stroke, dist_field)
+
+                dist_field = min_combine(cur_stroke, dist_field)
+
+                cur_stroke = None
+                cur_t1 = np.zeros(2)
+
+            elif np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
                 
                 assert prev_stroke is not None
 
