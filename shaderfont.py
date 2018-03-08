@@ -406,12 +406,9 @@ def ellipse_dist(ctr, ab, p, alim, filled):
 
         if filled:
 
-            h = n - t
-            h /= np.linalg.norm(h, axis=1)[:,None]
-            
-            d = np.where(d_end < 0,
-                         d,
-                         mydot(p, t))
+            d = np.where(d_end > 0,
+                         mydot(p, t),
+                         d)
         else:
             d = np.where(d_end > 0,
                          np.maximum(d_end, np.abs(mydot(p, t))),
