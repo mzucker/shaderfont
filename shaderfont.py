@@ -96,7 +96,7 @@ CLIPXY = 3
 PX_PER_UNIT = 8
 
 
-THICKNESS = 0.75
+THICKNESS = 0.5
 GLYPH_SEP = THICKNESS
 
 ISOLINES = 0
@@ -111,7 +111,8 @@ FONT = [
     # 32-47
     (' ',  6,  0,  0, CLIPXY, NOSYM, ''),
     ('!',  2, 10,  0, CLIPXY, SYM_X, 'M1,9 L1,4 T1,5 L-1,12 M1,1 L1,1'),
-    ('"',  5,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M4,8 L4,9 T4,9 L3,8'),
+    #('"',  5,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M4,8 L4,9 T4,9 L3,8'),
+    ('"',  4,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M3,8 L3,9 T3,9 L2,8'),
     ('#',  7, 10,  0, CLIPXY, SYM_Y, 'M1,3 L6,3 M2,0 L2,5 M5,0 L5,5'),
     ('$',  6, 12, -1, CLIPXY, SKEWY, 'A-13,5 E5,5 D5,5 D1,9 M3,0 L3,1'),
     ('%', 10, 10,  0, CLIP_X, NOSYM, 'M2,1 L8,9 M6,1 E9,4 M1,6 E4,9'),
