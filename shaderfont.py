@@ -65,6 +65,8 @@ OPCODE_EXPR = r'([' + OPCODES + '])'
 SEP_EXPR = r'[, ] *'
 OPTIONAL_SEP_EXPR = r'[, ]? *'
 
+OUTPUT_TO_TEXTURE = False
+
 FLOAT_SIGN_MASK =     np.uint32(0x80000000)
 FLOAT_EXPONENT_MSB  = np.uint32(0x40000000)
 FLOAT_EXPONENT_MASK = np.uint32(0x7f800000)
@@ -789,7 +791,8 @@ def assemble(glyph):
             gdata[i], bcount = write_bits(gdata[i], bcount, y, IMMEDIATE_BITS)
 
 
-        if ( (gdata[i] & FLOAT_EXPONENT_MASK) == 0 and
+        if ( OUTPUT_TO_TEXTURE and
+             (gdata[i] & FLOAT_EXPONENT_MASK) == 0 and
              (gdata[i] & FLOAT_MANTISSA_MASK) != 0):
             gdata[i] |= FLOAT_EXPONENT_MSB
 
@@ -828,15 +831,13 @@ def disassemble(ascii_value, gdata):
 
         bcount = WORD_BITS
 
-        f = gdata[i].view(np.float32)
-        assert not np.isnan(f)
-        assert f >= 0
 
-        # not nan
-        assert gdata[i] & FLOAT_EXPONENT_MASK != FLOAT_EXPONENT_MASK
-
-        # not subnormal
-        assert gdata[i] == 0 or (gdata[i] & FLOAT_EXPONENT_MASK)
+        if OUTPUT_TO_TEXTURE:
+            f = gdata[i].view(np.float32)
+            assert not np.isnan(f)
+            assert gdata[i] & FLOAT_SIGN_MASK == 0
+            assert gdata[i] & FLOAT_EXPONENT_MASK != FLOAT_EXPONENT_MASK
+            assert gdata[i] == 0 or (gdata[i] & FLOAT_EXPONENT_MASK)
         
 
         controls[i], bcount = read_bits(gdata[i], bcount, CONTROL_BITS, (i == 3))
@@ -928,18 +929,25 @@ def glsl_footer():
 
 def encode_glyphs():
 
-    encoding = glsl_header()
+    uvec_strs = []
 
     for glyph in FONT:
 
         ascii_value, gdata = assemble(glyph)
         alt_glyph = disassemble(ascii_value, gdata)
-        
-        encoding += '    store(' + glsl_uvec(gdata) + ');\n'
+        uvec_strs.append( glsl_uvec(gdata) )
+
 
         assert alt_glyph == glyph
 
-    encoding += glsl_footer()
+    if OUTPUT_TO_TEXTURE:
+        encoding = ( glsl_header() +
+                     ''.join(['store('+u+');\n' for u in uvec_strs]) +
+                     glsl_footer() )
+    else:
+        encoding = ( 'const uvec4 font_data[95] = uvec4[95](\n' +
+                     ',\n'.join(['    ' + u for u in uvec_strs]) +
+                     '\n);\n' )
 
     glsl_filename = 'code.glsl'
 
