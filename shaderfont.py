@@ -97,10 +97,10 @@ THICKNESS = 0.5
 GLYPH_SEP = THICKNESS
 
 ISOLINES = 0
-MAX_MITER_ZONE = 3.
 SHADE_EXTENTS = True
 
 RELEASE_MODE = True
+DEBUG_CONTINUITY = False
 
 FONT = [
 
@@ -113,8 +113,8 @@ FONT = [
     ('%', 10, 10,  0, CLIP_X, NOSYM, 'M2,1 L8,9 M6,1 E9,4 M1,6 E4,9'),
     ('&',  7, 10,  0, CLIPXY, NOSYM, 'E5,5 M5,6 L5,3 U9,1 M5,9 L3,9 D1,5 L6,5'),
     ("'",  2,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8'),
-    ('(',  3, 10,  0, CLIPXY, NOSYM, 'E5,9'),
-    (')',  3, 10,  0, CLIPXY, NOSYM, 'C-2,1 E2,9'),
+    ('(',  4, 10,  0, CLIPXY, NOSYM, 'E6,9'),
+    (')',  4, 10,  0, CLIPXY, NOSYM, 'C-2,1 E3,9'),
     ('*',  6,  6,  4, CLIP_X, SYM_X, 'M1,6 L3,7 L1,8 M3,5 L3,9'),
     ('+',  6,  6,  2, CLIPXY, NOSYM, 'M3,3 L3,7 M1,5 L5,5'),
     (',',  2,  3, -1, CLIPXY, NOSYM, 'M1,0 L1,1 T1,1 L0,0'),
@@ -144,7 +144,7 @@ FONT = [
     # 64-79
     ('A',  8, 10,  0, CLIPXY, SYM_X, 'M0,-3 L2,3 L4,3 M2,3 L4,9'),
     ('B',  6, 10,  0, CLIPXY, SYM_Y, 'L3,1 D5,5 L1,5 L1,1'),
-    ('C',  7, 10,  0, CLIPXY, SYM_Y, 'A11,16 E7,9'),
+    ('C',  7, 10,  0, CLIPXY, SYM_Y, 'M4,9 D1,1 C1,1 A-8,3 E7,9'),
     ('D',  7, 10,  0, CLIPXY, NOSYM, 'L3,1 D6,9 L1,9 L1,1'),
     ('E',  6, 10,  0, CLIPXY, SYM_Y, 'M5,1 L1,1 L1,5 L4,5'),
     ('F',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 L5,9 M1,5 L4,5'),
@@ -180,7 +180,7 @@ FONT = [
     ('`',  2,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,10'),
     ('a',  6,  8,  0, CLIPXY, NOSYM, 'E5,4 M5,1 L5,5 C5,4 A0,11 E1,7'),
     ('b',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 M1,1 E5,7'),
-    ('c',  5,  8,  0, CLIP_Y, SYM_Y, 'A11,16 E5,7'),
+    ('c',  5,  8,  0, CLIP_Y, SYM_Y, 'M3,7 D1,1 C1,1 A-8,3 E5,7'),
     ('d',  6, 10,  0, CLIPXY, NOSYM, 'E5,7 M5,1 L5,9'),    
     ('e',  6,  8,  0, CLIPXY, NOSYM, 'A-4,-12 E5,7 U5,7 L1,4 T1,1 E5,7'),
     ('f',  6, 10,  0, CLIPXY, NOSYM, 'M2,1 L2,7 C2,5 A-16,-13 E5,9 M1,5 L4,5'),
@@ -197,7 +197,7 @@ FONT = [
     # 112-126
     ('p',  6, 11, -3, CLIPXY, NOSYM, 'E5,7 M1,-2 L1,7'),
     ('q',  6, 11, -3, CLIPXY, NOSYM, 'E5,7 M5,-2 L5,7'),
-    ('r',  6,  8,  0, CLIPXY, NOSYM, 'L1,4 A-16,-13 E5,7 M1,1 L1,7'),
+    ('r',  6,  8,  0, CLIPXY, NOSYM, 'L1,4 A-16,-13 C1,1 E5,7 M1,1 L1,7'),
     ('s',  6,  8,  0, CLIPXY, NOSYM, 'A-13,5 E5,4 D5,4 D1,7 C1,7 A8,-5 E5,4'),
     ('t',  6, 10,  0, CLIPXY, NOSYM, 'M2,9 L2,3 C2,1 A-16,13 E5,5 M1,7 L4,7'),
     ('u',  6,  8,  0, CLIPXY, NOSYM, 'M1,7 L1,4 U5,1 M5,1 L5,7'),
@@ -357,10 +357,10 @@ def ellipse_dist(ctr, ab, p, alim, filled):
     
     denom = np.sqrt(dfdx2 + dfdy2)
 
-    d /= np.maximum(denom, 1e-5) 
+    d /= np.maximum(denom, 1e-5)
 
     if not filled:
-        d = abs(d)
+        d = np.abs(d)
 
     if alim[1]:
 
@@ -468,13 +468,11 @@ def miter(da, dc, p, ta, tc):
 
     ps = np.dot(p, nsplit)
 
-    amask = np.abs(pna) < MAX_MITER_ZONE
-    da = np.where((pta > 0) & amask, pna, da)    
-    da = np.where((np.minimum(ps, pta) > 0) & amask, 1e5, da)
+    da = np.where((pta > 0), pna, da)    
+    da = np.where((np.minimum(ps, pta) > 0), 1e5, da)
 
-    cmask = np.abs(pnc) < MAX_MITER_ZONE
-    dc = np.where((ptc > 0) & cmask, pnc, dc)    
-    dc = np.where((np.minimum(-ps, ptc) > 0) & cmask, 1e5, dc)
+    dc = np.where((ptc > 0), pnc, dc)    
+    dc = np.where((np.minimum(-ps, ptc) > 0), 1e5, dc)
 
     return da, dc
 
@@ -541,7 +539,7 @@ def rasterize(glyph, scl, p, dst):
 
             prev_stroke = None
             prev_t1 = np.array([0., 0.])
-            alim = np.array([0., 0.])
+            alim = np.array([0., 0])
             ellipse_corner = p1
             p0 = p1
             clip_mode = (opcode == 'T')
@@ -570,9 +568,9 @@ def rasterize(glyph, scl, p, dst):
                 rad = 0.5 * (p1 - ellipse_corner)
                 ellipse_corner = p1
 
-            estroke, p1, et0, ep1, et1 = ellipse_dist(
-                ctr, rad, p, alim, clip_mode)
-
+            start_angle = alim[0]*np.pi/16
+            p1 = ctr + from_angle(start_angle) * np.abs(rad)
+            
             connect_ellipse = (not clip_mode and
                                prev_stroke is not None and
                                np.linalg.norm(prev_t1) and
@@ -591,51 +589,11 @@ def rasterize(glyph, scl, p, dst):
                 cur_t0 /= n
 
             cur_t1 = cur_t0
-            ellipse_corner = p1
+            ellipse_corner = p1            
 
             print('  making {}line from {} to {} with tangent {}'.format(
                 ('connecting ' if connect_ellipse else ''),
                 p0, p1, cur_t0))
-
-        if opcode in 'UDE':
-
-            if connect_ellipse:
-
-                assert np.linalg.norm(prev_t1)
-                
-                print('  calling miter between {} and '
-                      'connecting line, cur_t0 is {}'.format(
-                          prev_opcode, cur_t0))
-
-                prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
-                                                p-p0, prev_t1, -cur_t0)
-
-                print('  stroking {}'.format(prev_opcode))
-                
-                dist_field = min_combine(prev_stroke, dist_field)
-
-                
-                prev_stroke = cur_stroke
-                prev_t1 = cur_t1
-                prev_opcode = 'connecting line'
-
-            cur_stroke = estroke
-            p0 = p1
-            p1 = ep1
-            cur_t0 = et0
-            cur_t1 = et1
-
-            print(('  making ellipse arc from {} to {} '
-                  'starting in dir {} ending in dir {}').format(
-                      p0, p1, cur_t0, cur_t1))
-
-        if clip_mode:
-
-            dist_field = max_combine(cur_stroke, dist_field)
-            prev_stroke = None
-            prev_t1 = np.zeros(2)
-
-        else:
 
             if np.linalg.norm(prev_t1) and np.linalg.norm(cur_t0):
                 
@@ -648,11 +606,62 @@ def rasterize(glyph, scl, p, dst):
                                                 p-p0, prev_t1, -cur_t0)
 
                 print('  stroking {}'.format(prev_opcode))
+
                 dist_field = min_combine(prev_stroke, dist_field)
 
             prev_stroke = cur_stroke
             prev_t1 = cur_t1
 
+        if opcode in 'UDE':
+
+            start = alim[0]
+            goal = start + alim[1]
+
+            cur = start
+
+            bnd = 32 if clip_mode else 8
+
+            for i in range(4):
+
+                if i > 0 and cur == goal:
+                    continue
+
+                delta = goal - cur
+                delta = max(-bnd, min(delta, bnd))
+            
+                loop_alim = np.array([cur, delta])
+                cur += delta
+                
+                cur_stroke, p0, cur_t0, p1, cur_t1 = ellipse_dist(
+                    ctr, rad, p, loop_alim, clip_mode)
+
+                print(('  making ellipse arc from {} to {} '
+                       'starting in dir {} ending in dir {}').format(
+                           p0, p1, cur_t0, cur_t1))
+
+                if np.linalg.norm(prev_t1):
+
+                    assert prev_stroke is not None
+
+                    print('  calling miter between {} and {}, '
+                          'cur_t0 is {}'.format(
+                              prev_opcode, opcode, cur_t0))
+                    
+                    prev_stroke, cur_stroke = miter(prev_stroke, cur_stroke,
+                                                    p-p0, prev_t1, -cur_t0)
+
+                    print('  stroking {}'.format(prev_opcode))
+
+                    dist_field = min_combine(prev_stroke, dist_field)
+
+                prev_stroke = cur_stroke
+                prev_t1 = cur_t1
+
+        if clip_mode:
+            dist_field = max_combine(cur_stroke, dist_field)
+            prev_t1 = np.zeros(2)
+            prev_stroke = None
+                
         p0 = p1
         prev_opcode = opcode
         
@@ -679,10 +688,19 @@ def rasterize(glyph, scl, p, dst):
 
     if dist_field is not None:
         dist_field = dist_field.reshape(dst.shape)
-        dst[:] = np.minimum(dst, smoothstep(0, scl, dist_field-THICKNESS))
 
-        for t in np.linspace(0, THICKNESS, ISOLINES, False):
-            dst[:] = np.maximum(dst, smoothstep(scl, 0, abs(dist_field-t)-0.25*scl))
+        if DEBUG_CONTINUITY:
+
+            dst[:] = np.where(np.maximum(clipy, clipx).reshape(dst.shape) < THICKNESS + 0.5,
+                              np.cos(dist_field*10) * 0.25 + 0.75,
+                              dst)
+            
+        else:
+            
+            dst[:] = np.minimum(dst, smoothstep(0, scl, dist_field-THICKNESS))
+        
+            for t in np.linspace(0, THICKNESS, ISOLINES, False):
+                dst[:] = np.maximum(dst, smoothstep(scl, 0, abs(dist_field-t)-0.25*scl))
 
     if SHADE_EXTENTS:
         clip_rect = (np.maximum(clipy, clipx)-THICKNESS).reshape(dst.shape)
