@@ -165,7 +165,7 @@ FONT = [
     ('S',  6, 10,  0, CLIPXY, SKEWY, 'A-13,5 E5,5 D5,5 D1,9'),
     ('T',  6, 10,  0, CLIPXY, NOSYM, 'M1,9 L5,9 M3,1 L3,9'),
     ('U',  6, 10,  0, CLIPXY, SYM_X, 'M5,3 U1,1 L1,9'),
-    ('V',  8, 10,  0, CLIP_Y, SYM_X, 'M1,10 L4,1'),
+    ('V',  8, 10,  0, CLIP_Y, SYM_X, 'M0,12 L4,1'),
     ('W', 11, 10,  0, CLIP_Y, SYM_X, 'M1,11 L3,1 L7,9'),
     ('X',  8, 10,  0, CLIP_Y, NOSYM, 'M0,-2 L8,12 M0,12 L8,-2'),
     ('Y',  8, 10,  0, CLIP_Y, SYM_X, 'M0,12 L5,3 M4,0 L4,5'),
