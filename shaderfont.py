@@ -105,8 +105,8 @@ DEBUG_CONTINUITY = False
 FONT = [
 
     # 32-47
-    (' ',  6,  0,  0, CLIPXY, NOSYM, ''),
-    ('!',  2, 10,  0, CLIPXY, SYM_X, 'M1,9 L1,4 T1,5 L-1,12 M1,1 L1,1'),
+    (' ',  4,  2,  0, CLIPXY, NOSYM, ''),
+    ('!',  2, 10,  0, CLIPXY, SYM_X, 'M1,9 L1,3 T1,4 L-1,11 M1,1 L1,1'),
     ('"',  4,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,8 M3,8 L3,9 T3,9 L2,8'),
     ('#',  7, 10,  0, CLIPXY, SYM_Y, 'M1,3 L6,3 M2,0 L2,5 M5,0 L5,5'),
     ('$',  6, 12, -1, CLIPXY, SKEWY, 'A-13,5 E5,5 D5,5 D1,9 M3,0 L3,1'),
@@ -152,7 +152,7 @@ FONT = [
     ('H',  7, 10,  0, CLIPXY, SYM_Y, 'L1,5 L6,5 L6,1'),
     ('I',  2, 10,  0, CLIPXY, NOSYM, 'L1,9'),
     ('J',  6, 10,  0, CLIPXY, NOSYM, 'M5,9 L5,3 U1,1'), 
-    ('K',  7, 10,  0, CLIP_Y, SYM_Y, 'L1,5 L2,5 L8,-3'),
+    ('K',  6, 10,  0, CLIPXY, SYM_Y, 'L1,5 L2,5 L5,0'),
     ('L',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 M1,1 L5,1'),
     ('M',  9, 10,  0, CLIPXY, SYM_X, 'L1,9 L7,1'),
     ('N',  7, 10,  0, CLIPXY, NOSYM, 'L1,9 L6,1 L6,9'),
@@ -178,7 +178,8 @@ FONT = [
 
     # 96-111
     ('`',  2,  3,  7, CLIPXY, NOSYM, 'M1,8 L1,9 T1,9 L0,10'),
-    ('a',  6,  8,  0, CLIPXY, NOSYM, 'E5,4 M5,1 L5,5 C5,4 A0,11 E1,7'),
+    #('a',  6,  8,  0, CLIPXY, NOSYM, 'E5,4 M5,1 L5,5 C5,4 A0,11 E1,7'),
+    ('a',  6,  8,  0, CLIPXY, NOSYM, 'E5,5 M5,1 L5,5 C5,4 A0,11 E1,7'),
     ('b',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 M1,1 E5,7'),
     ('c',  5,  8,  0, CLIP_Y, SYM_Y, 'M3,7 D1,1 C1,1 A-8,3 E5,7'),
     ('d',  6, 10,  0, CLIPXY, NOSYM, 'E5,7 M5,1 L5,9'),    
@@ -186,9 +187,9 @@ FONT = [
     ('f',  6, 10,  0, CLIPXY, NOSYM, 'M2,1 L2,7 C2,5 A-16,-13 E5,9 M1,5 L4,5'),
     ('g',  6, 12, -4, CLIPXY, NOSYM, 'E5,7 M5,7 L5,0 A0,-13 C5,3 E1,-3'),
     ('h',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 M1,1 L1,4 U5,7 L5,1'),
-    ('i',  2, 10,  0, CLIPXY, NOSYM, 'L1,6 M1,9 L1,9'),
-    ('j',  6, 14, -4, CLIPXY, NOSYM, 'M5,9 L5,9 M5,6 L5,0 A0,-13 C5,3 E1,-3'),
-    ('k',  6, 10,  0, CLIPXY, NOSYM, 'L1,9 M4,6 L1,4 L5,0'),
+    ('i',  2, 10,  0, CLIPXY, NOSYM, 'L1,7 M1,9 L1,9'),
+    ('j',  6, 14, -4, CLIPXY, NOSYM, 'M5,9 L5,9 M5,7 L5,0 A0,-13 C5,3 E1,-3'),
+    ('k',  5, 10,  0, CLIPXY, NOSYM, 'M1,5 L5,0 T1,4 L6,8 M1,4 L6,8 M1,1 L1,9'),
     ('l',  2, 10,  0, CLIPXY, NOSYM, 'L1,9'),
     ('m', 10,  8,  0, CLIPXY, NOSYM, 'L1,7 M1,1 L1,4 U5,7 L5,1 M5,4 U9,7 L9,1'),
     ('n',  6,  8,  0, CLIPXY, NOSYM, 'L1,7 M1,1 L1,4 U5,7 L5,1'),
@@ -888,11 +889,11 @@ def disassemble(ascii_value, gdata):
 
 ######################################################################
 
-def glsl_u(t):
+def glsl_i(t):
     if t == 0:
         return '0'
-    d = str(t) + 'u'
-    h = hex(t).rstrip('L') + 'u'
+    d = str(t)
+    h = hex(t).rstrip('L') 
     if len(d) < len(h):
         return d
     else:
@@ -900,10 +901,10 @@ def glsl_u(t):
 
 ######################################################################
     
-def glsl_uvec(tile):
-    return 'uvec{}({})'.format(
+def glsl_ivec(tile):
+    return 'ivec{}({})'.format(
         len(tile),
-        ', '.join( [ glsl_u(t) for t in tile ] ) )
+        ', '.join( [ glsl_i(t) for t in tile ] ) )
 
 ######################################################################
 
@@ -913,7 +914,7 @@ def glsl_header():
 int cur, idx;
 vec4 data;
 
-void store(in uvec4 v) {
+void store(in ivec4 v) {
     if (cur++ == idx) {
         data = uintBitsToFloat(v);
     }    
@@ -947,24 +948,24 @@ def glsl_footer():
 
 def encode_glyphs():
 
-    uvec_strs = []
+    ivec_strs = []
 
     for glyph in FONT:
 
         ascii_value, gdata = assemble(glyph)
         alt_glyph = disassemble(ascii_value, gdata)
-        uvec_strs.append( glsl_uvec(gdata) )
+        ivec_strs.append( glsl_ivec(gdata) )
 
 
         assert alt_glyph == glyph
 
     if OUTPUT_TO_TEXTURE:
         encoding = ( glsl_header() +
-                     ''.join(['store('+u+');\n' for u in uvec_strs]) +
+                     ''.join(['store('+u+');\n' for u in ivec_strs]) +
                      glsl_footer() )
     else:
-        encoding = ( 'const uvec4 font_data[95] = uvec4[95](\n' +
-                     ',\n'.join(['    ' + u for u in uvec_strs]) +
+        encoding = ( 'const ivec4 font_data[95] = ivec4[95](\n' +
+                     ',\n'.join(['    ' + u for u in ivec_strs]) +
                      '\n);\n' )
 
     glsl_filename = 'code.glsl'
